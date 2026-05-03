@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Islamic Prayer Times</title>
+
+    <link rel="stylesheet" href="style.css">
+    <script defer src="sketch.js"></script>
+</head>
+
+<body>
+    <div id="container">
+        <div id="today-date">
+            <h2><span style="text-align: end;">Gregorian Date:</span> <span id="gregorian-date">--/--/--</span></h2>
+            <h3 id="gregorian-month">Gregorian month</h3>
+            <h2><span style="text-align: end;">Hijri Date:</span> <span id="hijri-date">--/--/--</span></h2>
+            <h3 id="hijri-month">Hijri month</h3>
+        </div>
+
+        <div id="prayer-times">
+            <h1>Islamic Prayer Times</h1>
+            <table id="prayer-times-table">
+                <thead>
+                    <tr>
+                        <th>Prayer</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Fajr</td>
+                        <td id="fajr-start" class="prayer-time"></td>
+                        <td id="fajr-end" class="prayer-time"></td>
+                    </tr>
+                    <tr>
+                        <td>Dhuhr</td>
+                        <td id="dhuhr-start" class="prayer-time"></td>
+                        <td id="dhuhr-end" class="prayer-time"></td>
+                    </tr>
+                    <tr>
+                        <td>Asr</td>
+                        <td id="asr-start" class="prayer-time"></td>
+                        <td id="asr-end" class="prayer-time"></td>
+                    </tr>
+                    <tr>
+                        <td>Maghrib</td>
+                        <td id="maghrib-start" class="prayer-time"></td>
+                        <td id="maghrib-end" class="prayer-time"></td>
+                    </tr>
+                    <tr>
+                        <td>Isha</td>
+                        <td id="isha-start" class="prayer-time"></td>
+                        <td id="isha-end" class="prayer-time"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+
+        <div id="current-prayer">
+            <h2 id="current-prayer-name">Loading...</h2>
+            <p>
+                Time Remaining: <span id="current-prayer-time-remaining">--:--:--</span>
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>

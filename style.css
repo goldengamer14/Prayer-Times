@@ -1,0 +1,159 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    /* background-color: #0A192F; */
+    /* Deep Navy */
+    background-color: #0D1117;
+    color: #E6EDF3;
+    /* Off-white text for perfect contrast */
+    /* width: 99vw; */
+    width: auto;
+    height: auto;
+}
+
+#container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 672px;
+    /* width: minmax(100%, 672px); */
+    height: auto;
+}
+
+#today-date,
+#prayer-times,
+#current-prayer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 3;
+}
+
+#today-date {
+    /* font-size: 1.2em; */
+    margin-top: 20px;
+    background-color: #21262D;
+    /* Darker background for date */
+    padding: 10px 20px;
+    width: calc(100% - 40px);
+}
+
+#today-date h2 {
+    margin: 5px 0;
+    color: #58A6FF;
+    /* Bright blue for date text */
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+#today-date h3 {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #2ECC71;
+    /* Vibrant emerald green for month names */
+    text-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
+    text-align: center;
+}
+
+#current-prayer {
+    height: 10%;
+    width: 100%;
+    /* margin: 20px auto; */
+    /* padding: 2rem; */
+    margin: 0;
+    padding: 0;
+
+    background-color: #21262D;
+    /* Darker background for current prayer */
+}
+
+#current-prayer-name {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #2ECC71;
+    /* Vibrant emerald green */
+    text-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
+}
+
+#current-prayer-time-remaining {
+    font-size: 1.2em;
+    color: #27AE60;
+    /* Slightly deeper green */
+    text-shadow: 0 0 6px rgba(39, 174, 96, 0.3);
+}
+
+#prayer-times {
+    text-align: center;
+    width: 100%;
+    height: 70%;
+}
+
+#prayer-times-table {
+    width: 70vw;
+    min-width: 415px;
+    max-width: 672px;
+    margin: 50px auto;
+    padding: 20px;
+    text-align: center;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+#prayer-times-table thead {
+    background-color: #21262D;
+    /* Darker background for header */
+}
+
+#prayer-times-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+}
+
+#prayer-times-table td,
+#prayer-times-table th {
+    padding: 12px 15px;
+    border-bottom: 1px solid #21262D;
+    /* Darker line for separation */
+    margin: 0.5rem;
+    height: 40%;
+}
+
+#prayer-times-table .prayer-name {
+    font-weight: bold;
+    color: #58A6FF;
+    /* Bright blue for prayer names */
+    text-align: center;
+}
+
+#prayer-times-table .prayer-time {
+    font-size: 1.2em;
+    color: #58A6FF;
+    /* Bright blue for prayer times */
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #58A6FF;
+    /* Bright blue for headings */
+    width: 100%;
+}
+
+.prayer-time {
+    padding: 10px 0;
+    border-bottom: 1px solid #21262D;
+    /* Darker line for separation */
+}
