@@ -16,6 +16,7 @@ let prayerTimes = {};
 const prayerNames = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 let currentPrayer = null;
 let updateTimingsIntervalId = null;
+const notificationsScheduled = []; // Track scheduled notifications
 
 async function getPrayerTimes() {
   // Step 1: Get current location
@@ -30,16 +31,32 @@ async function getPrayerTimes() {
       {
         timeout: 10000, // 10 seconds timeout
         maximumAge: 60000, // Accept cached position up to 1 minute old
-        enableHighAccuracy: false // Request high accuracy for better results
+        enableHighAccuracy: true // Request high accuracy for better results
       }
     );
   }).then(position => {
     console.log("Geolocation successful:", position);
     return position;
-  }).catch(error => {
-    console.error("Geolocation error:", error);
-    alert(error.message);
-    throw error;
+  }).catch(errorAccurate => {
+    console.error("Could not fetch location with High Accuracy:", errorAccurate);
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        reject,
+        {
+          timeout: 10000, // 10 seconds timeout for fallback
+          maximumAge: 120000, // Accept cached position up to 2 minutes old for fallback
+          enableHighAccuracy: false // Disable high accuracy for fallback to save resources
+        }
+      );
+    }).then(position => {
+      console.log("Fallback geolocation successful:", position);
+      return position;
+    }).catch(error => {
+      console.error("Could not fetch location with fallback:", error);
+      alert("Unable to fetch your location. Please allow location access and refresh the page.", error.message);
+      throw error;
+    });
   });
 
   console.log(position);
@@ -77,10 +94,10 @@ async function getPrayerTimes() {
   console.log("Date:", date);
   console.table(prayerTimes);
 
-  gregorianDateElement.textContent = data.data.date.gregorian.date;
-  hijriDateElement.textContent = data.data.date.hijri.date;
-  gregorianMonthElement.textContent = data.data.date.gregorian.month.en;
-  hijriMonthElement.textContent = data.data.date.hijri.month.en;
+  gregorianDateElement.textContent = data.data.date.gregorian.date ?? "--/--/----";
+  hijriDateElement.textContent = data.data.date.hijri.date ?? "--/--/----";
+  gregorianMonthElement.textContent = data.data.date.gregorian.month.en ?? "Gregorian month";
+  hijriMonthElement.textContent = data.data.date.hijri.month.en ?? "Hijri month";
 
   return [timings, prayerTimes];
 }
@@ -106,7 +123,7 @@ async function updateTimings(timings, prayerTimes) {
     if (startTime <= nowTime && endTime > nowTime) {
       // console.log("Prayer time found!", prayer, startTime, endTime, nowTime);
       currentPrayerNameElement.textContent = prayer;
-      currentPrayerTimeElement.textContent = `${Math.floor((endTime - nowTime) / 60)}:${Math.floor((endTime - nowTime) % 60)} hours remaining`;
+      currentPrayerTimeElement.textContent = `${Math.floor((endTime - nowTime) / 60)}:${Math.floor((endTime - nowTime) % 60)}:${Math.floor((60 - (today.getSeconds())) % 60)} hours remaining`;
       currentPrayer = prayer;
     }
   });
@@ -123,10 +140,23 @@ async function updateTimings(timings, prayerTimes) {
     // console.log(`Isha - Start: ${startTime}, End: ${endTime}, Now: ${nowTime}`);
 
     if (startTime <= nowTime) {
-      currentPrayerTimeElement.textContent = `${Math.floor((endTime + (1440 - nowTime)) / 60)}:${Math.floor((startTime + (1440 - nowTime)) % 60)} hours remaining`;
+      currentPrayerTimeElement.textContent = `${Math.floor((endTime + (1440 - nowTime)) / 60)}:${Math.floor((startTime + (1440 - nowTime)) % 60)}:${Math.floor((60 - (today.getSeconds())) % 60)} hours remaining`;
     } else {
       currentPrayerTimeElement.textContent = `${Math.floor((tempEndDate.getHours() * 60 + tempEndDate.getMinutes() - (today.getHours() * 60 + today.getMinutes())) / 60)}:${Math.floor((tempEndDate.getHours() * 60 + tempEndDate.getMinutes() - (today.getHours() * 60 + today.getMinutes())) % 60)}:${Math.floor((60 - (today.getSeconds())) % 60)} hours remaining`;
     }
+  }
+
+  tempStartDate.setHours(...prayerTimes.Fajr.end.split(":").map(Number));
+  tempEndDate.setHours(...prayerTimes.Dhuhr.start.split(":").map(Number));
+  if (tempStartDate.getHours() * 60 + tempStartDate.getMinutes() <= today.getHours() * 60 + today.getMinutes() && tempEndDate.getHours() * 60 + tempEndDate.getMinutes() > today.getHours() * 60 + today.getMinutes()) {
+    currentPrayerNameElement.textContent = "No Prayer Currently";
+    const startTime = tempStartDate.getHours() * 60 + tempStartDate.getMinutes();
+    const endTime = tempEndDate.getHours() * 60 + tempEndDate.getMinutes();
+    const nowTime = today.getHours() * 60 + today.getMinutes();
+
+    currentPrayer = null;
+    // console.log(`No Prayer - Start: ${startTime}, End: ${endTime}, Now: ${nowTime}`);
+    currentPrayerTimeElement.textContent = `${Math.floor((endTime - nowTime) / 60)}:${Math.floor((endTime - nowTime) % 60)}:${Math.floor((60 - (today.getSeconds())) % 60)} hours until Dhuhr`;
   }
 
   // Step 5: Update the UI with the fetched prayer times
@@ -156,9 +186,11 @@ async function updateTimingsLoop() {
     clearInterval(updateTimingsIntervalId);
   }
 
+  rescheduleNotifications(); // Schedule notifications based on the newly fetched prayer times
+
   const now = new Date();
 
-  await setTimeout(async () => {
+  setTimeout(async () => {
     await updateTimings(timings, prayerTimes);
     updateTimingsIntervalId = setInterval(() => updateTimings(timings, prayerTimes), 1000); // Update every second
   }, 1000 - now.getMilliseconds());
@@ -175,13 +207,14 @@ function main() {
     const now = new Date();
     const splitCurrentPrayerTime = prayerTimes[currentPrayer]?.end.split(":").map(Number) || [0, 0];
 
-    if (Math.abs(now.getHours() * 60 + now.getMinutes() - (splitCurrentPrayerTime[0] * 60 + splitCurrentPrayerTime[1])) <= 1) {
-      scheduleNotification(`Only one minute left for ${currentPrayer}`, 1000);
-    } else if (Math.abs(now.getHours() * 60 + now.getMinutes() - (splitCurrentPrayerTime[0] * 60 + splitCurrentPrayerTime[1])) <= 5) {
-      scheduleNotification(`Only five minutes left for ${currentPrayer}. Time for ${prayerNames[prayerNames.indexOf(currentPrayer) + 1]} is approaching`, 1000);
-    } else if (Math.abs(now.getHours() * 60 + now.getMinutes() - (splitCurrentPrayerTime[0] * 60 + splitCurrentPrayerTime[1])) <= 0) {
-      scheduleNotification(`Time for ${currentPrayer} has ended. It's time for ${prayerNames[prayerNames.indexOf(currentPrayer) + 1]}`, 1000);
-    }
+    // if (Math.abs(now.getHours() * 60 + now.getMinutes() - (splitCurrentPrayerTime[0] * 60 + splitCurrentPrayerTime[1])) <= 1) {
+    //   scheduleNotification(`Only one minute left for ${currentPrayer}`, 1000);
+    // } else if (Math.abs(now.getHours() * 60 + now.getMinutes() - (splitCurrentPrayerTime[0] * 60 + splitCurrentPrayerTime[1])) <= 5) {
+    //   scheduleNotification(`Only five minutes left for ${currentPrayer}. Time for ${prayerNames[prayerNames.indexOf(currentPrayer) + 1]} is approaching`, 1000);
+    // } else if (Math.abs(now.getHours() * 60 + now.getMinutes() - (splitCurrentPrayerTime[0] * 60 + splitCurrentPrayerTime[1])) <= 0) {
+    //   scheduleNotification(`Time for ${currentPrayer} has ended. It's time for ${prayerNames[prayerNames.indexOf(currentPrayer) + 1]}`, 1000);
+    // }
+
   }, (60 - (now.getSeconds() % 60)) * 1000 - now.getMilliseconds()); // Align the first fetch to the next minute mark for better accuracy and performance
 }
 
@@ -207,9 +240,6 @@ if ("serviceWorker" in navigator) {
         console.log("SW registered", reg);
         // Request notification permission after SW registration
         await enableNotifications();
-
-        // Test push notification after permission is granted
-        // testNotification();
       })
       .catch(err => console.log("SW failed", err));
   });
@@ -222,32 +252,83 @@ async function enableNotifications() {
     return;
   }
 
+  if (Notification.permission === "granted") {
+    console.log("Notifications already enabled.");
+    return;
+  }
+
   const permission = await Notification.requestPermission();
 
   if (permission === "granted") {
     console.log("Notifications enabled.");
+
+    // Test push notification after permission is granted
+    testNotification();
   } else {
     console.log("Notifications denied.");
   }
 }
 
 // Function to schedule a notification for a specific prayer time (for demonstration purposes)
-function scheduleNotification(prayerName, delayMs) {
-  setTimeout(() => {
+function scheduleNotification(title, body, delayMs) {
+  const timeoutId = setTimeout(() => {
     navigator.serviceWorker.ready.then(registration => {
-      registration.showNotification(`Time for ${prayerName}`, {
-        body: `${prayerName} prayer has started.`,
+      registration.showNotification(title, {
+        body: body,
         icon: favicon
       });
     });
   }, delayMs);
+
+  // Store the timeout ID to allow cancellation if needed
+  notificationsScheduled.push(timeoutId);
+}
+
+function rescheduleNotifications() {
+  if (!currentPrayer) {
+    return; // No current prayer, so no notifications to schedule
+  }
+
+  // Clear any previously scheduled notifications to avoid duplicates when prayer times are updated
+  notificationsScheduled.forEach(timeoutId => clearTimeout(timeoutId)); // Clear any previously scheduled notifications
+  notificationsScheduled.length = 0; // Clear the array of scheduled notifications
+
+  // Schedule notifications for the current prayer time if applicable
+  const today = new Date();
+  const tempEndDate = new Date();
+  tempEndDate.setHours(...prayerTimes[currentPrayer]?.end.split(":").map(Number) || [0, 0]);
+
+  // Calculate the time until the current prayer ends in milliseconds
+  const nowTime = today.getHours() * 60 + today.getMinutes();
+  const endTime = tempEndDate.getHours() * 60 + tempEndDate.getMinutes();
+
+  // Calculate the time until the current prayer ends in milliseconds, accounting for seconds to ensure notifications are scheduled accurately
+  const timeUntilEnd = Math.floor((endTime - nowTime) * 60 * 1000 - today.getSeconds() * 1000); // Time until current prayer ends in milliseconds
+
+  // If the current prayer time has already ended, we can skip scheduling notifications for it
+  if (timeUntilEnd <= 0) {
+    return;
+  }
+
+  if (timeUntilEnd > 0) {
+    // Schedule a notification for 5 minutes before the prayer ends
+    if (timeUntilEnd > 5 * 60 * 1000) {
+      scheduleNotification(`Time for ${currentPrayer} has ended.`, "The prayer time ends in 5 minutes.", timeUntilEnd - 5 * 60 * 1000);
+    }
+    // Schedule a notification for 1 minute before the prayer ends
+    if (timeUntilEnd > 1 * 60 * 1000) {
+      scheduleNotification(`Time for ${currentPrayer} has ended.`, "The prayer time ends in 1 minute.", timeUntilEnd - 1 * 60 * 1000);
+    }
+    // Schedule a notification for when the prayer ends
+    scheduleNotification(`Time for ${currentPrayer} has ended.`, "The prayer time has ended.", timeUntilEnd);
+  }
 }
 
 // Test function to trigger a notification immediately for debugging purposes
 function testNotification() {
   navigator.serviceWorker.ready.then(registration => {
     registration.showNotification("Prayer Times", {
-      body: "Test notification successful.",
+      body: "Thanks for enabling notifications! You'll receive updates for prayer times.",
       icon: favicon
     });
   });
