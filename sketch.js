@@ -235,7 +235,7 @@ if ("serviceWorker" in navigator) {
   console.log("Registering Service Worker...");
 
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js")
+    navigator.serviceWorker.register("sw.js")
       .then(async reg => {
         console.log("SW registered", reg);
         // Request notification permission after SW registration
