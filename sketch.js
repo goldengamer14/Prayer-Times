@@ -11,12 +11,13 @@ const hijriDateElement = document.getElementById("hijri-date");
 const gregorianMonthElement = document.getElementById("gregorian-month");
 const hijriMonthElement = document.getElementById("hijri-month");
 
-let timings = {};
-let prayerTimes = {};
+let timings = {}, prayerTimes = {}, fetchedDate = {};
 const prayerNames = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 let currentPrayer = null;
 let updateTimingsIntervalId = null;
 const notificationsScheduled = []; // Track scheduled notifications
+
+sessionStorage.getItem("firstTime") && sessionStorage.removeItem("firstTime"); // Initialize first time flag in sessionStorage
 
 async function getPrayerTimes() {
   // Step 1: Get current location
@@ -37,7 +38,7 @@ async function getPrayerTimes() {
   }).then(position => {
     console.log("Geolocation successful:", position);
     return position;
-  }).catch(errorAccurate => {
+  }).catch(async errorAccurate => {
     console.error("Could not fetch location with High Accuracy:", errorAccurate);
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
@@ -54,13 +55,14 @@ async function getPrayerTimes() {
       return position;
     }).catch(error => {
       console.error("Could not fetch location with fallback:", error);
-      alert("Unable to fetch your location. Please allow location access and refresh the page.", error.message);
-      throw error;
+      !sessionStorage.getItem("firstTime") && alert("Unable to fetch your location. Please allow location access and refresh the page.", error.message);
+      sessionStorage.setItem("firstTime", "true");
+      // throw error;
     });
   });
 
   console.log(position);
-  const { latitude, longitude } = position.coords;
+  const { latitude, longitude } = position?.coords || {};
 
   // Step 2: Get current date
   const today = new Date();
@@ -73,33 +75,68 @@ async function getPrayerTimes() {
   );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch prayer times.");
+    console.error("Failed to fetch prayer times. Status:", response.status, "Status Text:", response.statusText);
   }
 
-  const data = await response.json();
+  const data = await response?.json() ?? {};
 
   console.table(data);
 
   // Step 4: Extract timings
-  const timings = data.data.timings;
-  const prayerTimes = {
-    Fajr: { start: timings.Fajr, end: timings.Sunrise },
-    Dhuhr: { start: timings.Dhuhr, end: timings.Asr },
-    Asr: { start: timings.Asr, end: timings.Maghrib },
-    Maghrib: { start: timings.Maghrib, end: timings.Isha },
-    Isha: { start: timings.Isha, end: timings.Fajr }
-  };
 
-  console.log("Location:", latitude, longitude);
-  console.log("Date:", date);
-  console.table(prayerTimes);
+  let timings = {}, prayerTimes = {}, fetchedDate = {};
 
-  gregorianDateElement.textContent = data.data.date.gregorian.date ?? "--/--/----";
-  hijriDateElement.textContent = data.data.date.hijri.date ?? "--/--/----";
-  gregorianMonthElement.textContent = data.data.date.gregorian.month.en ?? "Gregorian month";
-  hijriMonthElement.textContent = data.data.date.hijri.month.en ?? "Hijri month";
+  if (data.code === 200 && data.data && data.data.timings) {
+    timings = data.data.timings;
+    prayerTimes = {
+      Fajr: { start: timings.Fajr, end: timings.Sunrise },
+      Dhuhr: { start: timings.Dhuhr, end: timings.Asr },
+      Asr: { start: timings.Asr, end: timings.Maghrib },
+      Maghrib: { start: timings.Maghrib, end: timings.Isha },
+      Isha: { start: timings.Isha, end: timings.Fajr }
+    };
+    fetchedDate = data.data.date;
 
-  return [timings, prayerTimes];
+    sessionStorage.removeItem("firstTime"); // Clear first time flag on successful fetch
+
+    console.log("Location:", latitude, longitude);
+    console.log("Date:", fetchedDate);
+    console.table(prayerTimes);
+  } else {
+    prayerTimes = JSON.parse(localStorage.getItem("prayerTimes")) || {};
+    fetchedDate = JSON.parse(localStorage.getItem("currentDate")) || {};
+    console.warn("Failed to fetch prayer times, using cached data from localStorage if available.");
+  }
+
+
+  // Handle cases where API response is missing or malformed, and use cached data if available
+  if (Object.entries(prayerTimes).length < 1) {
+    if (localStorage.getItem("prayerTimes")) {
+      prayerTimes = JSON.parse(localStorage.getItem("prayerTimes"));
+      console.warn("Failed to fetch prayer times, using cached data from localStorage.");
+    } else {
+      console.error("Failed to fetch prayer times and no cached data available.");
+      return;
+    }
+  } else if (localStorage.getItem("prayerTimes") != JSON.stringify(prayerTimes)) {
+    console.log("Caching prayer times for offline use...");
+    localStorage.setItem("prayerTimes", JSON.stringify(prayerTimes));
+  }
+
+  if (Object.entries(fetchedDate).length < 1) {
+    if (localStorage.getItem("currentDate")) {
+      fetchedDate = JSON.parse(localStorage.getItem("currentDate"));
+      console.warn("Failed to fetch current date, using cached data from localStorage.");
+    } else {
+      console.error("Failed to fetch current date and no cached data available.");
+      return;
+    }
+  } else if (localStorage.getItem("currentDate") != JSON.stringify(fetchedDate)) {
+    console.log("Caching current date for offline use...");
+    localStorage.setItem("currentDate", JSON.stringify(fetchedDate));
+  }
+
+  return [timings, prayerTimes, fetchedDate];
 }
 
 async function updateTimings(timings, prayerTimes) {
@@ -177,9 +214,15 @@ async function updateTimings(timings, prayerTimes) {
 }
 
 async function updateTimingsLoop() {
-  [timings, prayerTimes] = await getPrayerTimes();
+  [timings, prayerTimes, fetchedDate] = await getPrayerTimes() ?? [{}, {}, {}];
+
   // Align the first update to the next 10-minute mark for better accuracy and performance
   updateTimings(timings, prayerTimes); // Initial update immediately after fetching times
+
+  gregorianDateElement.textContent = fetchedDate?.gregorian?.date ?? "--/--/----";
+  hijriDateElement.textContent = fetchedDate?.hijri?.date ?? "--/--/----";
+  gregorianMonthElement.textContent = fetchedDate?.gregorian?.month?.en ?? "Gregorian month";
+  hijriMonthElement.textContent = fetchedDate?.hijri?.month?.en ?? "Hijri month";
 
   // Clear any existing interval to prevent multiple intervals running simultaneously
   if (updateTimingsIntervalId) {
