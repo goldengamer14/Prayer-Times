@@ -1,3 +1,6 @@
+// Setup for Capacitor Application
+import { LocalNotifications } from "@capacitor/local-notifications";
+
 // Fetch Islamic prayer times for the user's current location using browser geolocation + Aladhan/Ummah-style prayer API
 // Replace API URL/key if your specific Ummah API endpoint differs.
 
@@ -281,6 +284,14 @@ async function updateTimingsLoop() {
 function main() {
   const now = new Date();
 
+  await LocalNotifications.requestPermissions().then(result => {
+    if (result.granted) {
+      console.log("Notification permissions granted.");
+    }
+  }).catch(error => {
+    console.error("Error requesting notification permissions:", error);
+  });
+
   if (Boolean(localStorage.getItem("DenyRefreshment"))) {
     console.log("Low Memory Mode enabled. Timings will not be refreshed automatically.");
     optimizeBtn.textContent = "Switch to Regular Mode";
@@ -329,21 +340,6 @@ main();
 
 
 
-// Service Worker registration for offline support and caching
-if ("serviceWorker" in navigator) {
-  console.log("Registering Service Worker...");
-
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js")
-      .then(async reg => {
-        console.log("SW registered", reg);
-        // Request notification permission after SW registration
-        await enableNotifications();
-      })
-      .catch(err => console.log("SW failed", err));
-  });
-}
-
 // Function to request notification permission from the user
 async function enableNotifications() {
   if (!("Notification" in window)) {
@@ -369,27 +365,31 @@ async function enableNotifications() {
 }
 
 // Function to schedule a notification for a specific prayer time (for demonstration purposes)
-function scheduleNotification(title, body, delayMs) {
-  const timeoutId = setTimeout(() => {
-    navigator.serviceWorker.ready.then(registration => {
-      registration.showNotification(title, {
-        body: body,
-        icon: favicon
-      });
-    });
-  }, delayMs);
+async function scheduleNotification(title, body, delayMs) {
+  const scheduleDate = new Date(Date.now() + delayMs);
 
-  // Store the timeout ID to allow cancellation if needed
-  notificationsScheduled.push(timeoutId);
+  const notificationID = await LocalNotifications.schedule({
+    notifications: [
+      {
+        title: title,
+        body: body,
+        id: Date.now(), // Unique ID for the notification
+        schedule: { at: scheduleDate, allowWhileIdle: true }, // Schedule the notification for the specified date and time, allowing it to trigger even if the device is idle
+        icon: favicon
+      }
+    ]
+  });
+
+  notificationID && notificationsScheduled.push(notificationID); // Track the scheduled notification ID for future cancellation if needed
 }
 
-function rescheduleNotifications() {
+async function rescheduleNotifications() {
   if (!currentPrayer) {
     return; // No current prayer, so no notifications to schedule
   }
 
   // Clear any previously scheduled notifications to avoid duplicates when prayer times are updated
-  notificationsScheduled.forEach(timeoutId => clearTimeout(timeoutId)); // Clear any previously scheduled notifications
+  await LocalNotifications.cancel({notifications: notificationsScheduled}); // Cancel all previously scheduled notifications
   notificationsScheduled.length = 0; // Clear the array of scheduled notifications
 
   // Schedule notifications for the current prayer time if applicable
