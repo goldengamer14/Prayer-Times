@@ -5,9 +5,10 @@ body {
     font-family: Arial, sans-serif;
 
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    /* flex-direction: row-reverse; */
+    align-items: baseline;
     justify-content: center;
+    gap: 1rem;
 
     /* background-color: #0A192F; */
     /* Deep Navy */
@@ -24,10 +25,57 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    max-width: 672px;
-    /* width: minmax(100%, 672px); */
+
+    /* width: 100%; */
+    /* max-width: 672px; */
+    width: minmax(100%, 672px);
+
+    margin: 2rem auto;
+    padding: 1rem;
+    gap: 1rem;
+
     height: auto;
+    /* box-sizing: border-box; */
+}
+
+#optimize-section {
+    position: fixed;
+
+    top: 1rem;
+    right: 1rem;
+
+    z-index: 1080;
+}
+
+#optimize-btn {
+    padding: 0.75rem 1rem;
+
+    font-size: 0.95rem;
+    font-weight: 600;
+
+    color: #E6EDF3;
+
+    background: rgba(33, 38, 45, 0.9);
+
+    border: 1px solid rgba(88, 166, 255, 0.25);
+
+    border-radius: 12px;
+
+    backdrop-filter: blur(10px);
+
+    cursor: pointer;
+
+    transition:
+        transform 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+#optimize-btn:hover {
+    background-color: #2d333b;
+    border-color: rgba(88, 166, 255, 0.5);
+
+    transform: translateY(-1px);
 }
 
 #today-date,
@@ -65,7 +113,7 @@ body {
     color: #2ECC71;
     /* Vibrant emerald green for month names */
     text-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
-    text-align: center;
+    text-align: start;
 }
 
 #current-prayer {
@@ -119,7 +167,12 @@ body {
 
 #prayer-times-table tr {
     display: grid;
-    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    /* grid-template-columns: repeat(3, minmax(150px, 1fr)); */
+    grid-template-columns:
+        minmax(80px, 1fr)
+        minmax(90px, 1fr)
+        minmax(90px, 1fr);
+    align-items: center;
 }
 
 #prayer-times-table td,
@@ -156,4 +209,34 @@ h1 {
     padding: 10px 0;
     border-bottom: 1px solid #21262D;
     /* Darker line for separation */
+}
+
+@media (max-width: 600px) {
+
+    #container {
+        /* width: 96vw; */
+        padding: 0.5rem;
+    }
+
+    #prayer-times-table {
+        padding: 0.5rem;
+    }
+
+    #prayer-times-table td,
+    #prayer-times-table th {
+        margin: 0.2rem;
+        padding: 0.75rem 0.25rem;
+
+        font-size: 0.9rem;
+    }
+
+    #current-prayer-name {
+        font-size: 2rem;
+        text-align: center;
+    }
+
+    #optimize-btn {
+        font-size: 0.85rem;
+        padding: 0.6rem 0.8rem;
+    }
 }

@@ -3,6 +3,7 @@
 
 const favicon = "https://res.cloudinary.com/dl5ptl1zm/image/upload/v177791730/Islamic_Prayer_Times_Favicon_g2gfh0.png";
 
+const optimizeBtn = document.getElementById("optimize-btn");
 const prayerTimeElements = Array.from(document.getElementsByClassName("prayer-time"));
 const currentPrayerNameElement = document.getElementById("current-prayer-name");
 const currentPrayerTimeElement = document.getElementById("current-prayer-time-remaining");
@@ -15,9 +16,46 @@ let timings = {}, prayerTimes = {}, fetchedDate = {};
 const prayerNames = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 let currentPrayer = null;
 let updateTimingsIntervalId = null;
+let getPrayerTimesIntervalId = null;
 const notificationsScheduled = []; // Track scheduled notifications
 
 sessionStorage.getItem("firstTime") && sessionStorage.removeItem("firstTime"); // Initialize first time flag in sessionStorage
+
+optimizeBtn.addEventListener("click", () => {
+  if (Boolean(localStorage.getItem("DenyRefreshment"))) {
+    localStorage.removeItem("DenyRefreshment");
+    optimizeBtn.textContent = "Switch to Low Power Mode";
+    main(); // Restart the update loop with regular refreshment
+  } else {
+    localStorage.setItem("DenyRefreshment", "true");
+    optimizeBtn.textContent = "Switch to Regular Mode";
+    if (getPrayerTimesIntervalId) {
+      clearInterval(getPrayerTimesIntervalId);
+      getPrayerTimesIntervalId = null;
+    }
+  }
+});
+
+function initPrayerTimes() {
+  let flag = 0;
+
+  if (localStorage.getItem("prayerTimes")) {
+    prayerTimes = JSON.parse(localStorage.getItem("prayerTimes"));
+    flag |= 1;
+    console.log("(initPrayerTimes) -> Loaded prayer times from localStorage:", prayerTimes);
+  }
+  if (localStorage.getItem("currentDate")) {
+    fetchedDate = JSON.parse(localStorage.getItem("currentDate"));
+    flag |= 2;
+    console.log("\n\n\n(initPrayerTimes) -> Loaded current date from localStorage:", fetchedDate);
+  }
+
+  if (!flag) {
+    console.warn("(initPrayerTimes) -> No cached prayer times or date found in localStorage.");
+  } else if (flag < 3) {
+    console.warn("(initPrayerTimes) -> Incomplete cached data in localStorage. Prayer times or date may be missing.");
+  }
+}
 
 async function getPrayerTimes() {
   // Step 1: Get current location
@@ -242,10 +280,28 @@ async function updateTimingsLoop() {
 
 function main() {
   const now = new Date();
+
+  if (Boolean(localStorage.getItem("DenyRefreshment"))) {
+    console.log("Low Memory Mode enabled. Timings will not be refreshed automatically.");
+    optimizeBtn.textContent = "Switch to Regular Mode";
+  } else {
+    console.log("High Memory Mode enabled. Timings will be refreshed every minute.");
+    optimizeBtn.textContent = "Switch to Low Memory Mode";
+  }
+
+  initPrayerTimes(); // Load cached prayer times and date from localStorage if available
+
   updateTimingsLoop();
   setTimeout(() => {
     updateTimingsLoop();
-    setInterval(updateTimingsLoop, 60000); // Fetch new prayer times every minute to account for date changes and location updates
+    if (!Boolean(localStorage.getItem("DenyRefreshment"))) {
+      console.log("Starting automatic refresh of prayer times every minute.");
+      console.log("DenyRefreshment:", Boolean(localStorage.getItem("DenyRefreshment")));
+      if (!getPrayerTimesIntervalId) {
+        getPrayerTimesIntervalId = setInterval(updateTimingsLoop, 60000); // Fetch new prayer times every minute to account for date changes and location updates
+        console.log("getPrayerTimesIntervalId set for automatic refresh every minute.", getPrayerTimesIntervalId);
+      }
+    }
 
     const now = new Date();
     const splitCurrentPrayerTime = prayerTimes[currentPrayer]?.end.split(":").map(Number) || [0, 0];
